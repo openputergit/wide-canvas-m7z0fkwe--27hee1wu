@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chicken Run: PvP Racing Madness</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Comic Neue', cursive;
+            background: #f0f9ff;
+            overflow-x: hidden;
+        }
+        .title {
+            font-family: 'Bangers', cursive;
+        }
+        .wheel {
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+        }
+        .chicken {
+            transform-origin: center;
+            transition: all 0.3s ease;
+        }
+        .chicken:active {
+            transform: scale(0.95);
+        }
+        .race-track {
+            background: repeating-linear-gradient(90deg, #8B5E3C 0px, #8B5E3C 50px, #A67C52 50px, #A67C52 100px);
+            animation: moveTrack 2s linear infinite;
+        }
+        @keyframes moveTrack {
+            from { background-position: 0 0; }
+            to { background-position: -100px 0; }
+        }
+        .power-up {
+            animation: bounce 1s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="mainMenu" class="min-h-screen flex flex-col items-center justify-center p-4">
+        <h1 class="title text-6xl md:text-8xl text-blue-600 mb-8 text-center">Chicken Run</h1>
+        <div class="space-y-4 w-full max-w-md">
+            <button onclick="startGame()" class="w-full bg-green-500 hover:bg-green-600 text-white text-xl py-4 rounded-lg shadow-lg transition-all">
+                <i class="bi bi-play-fill"></i> Play
+            </button>
+            <button class="w-full bg-blue-500 hover:bg-blue-600 text-white text-xl py-4 rounded-lg shadow-lg transition-all">
+                <i class="bi bi-trophy-fill"></i> Leaderboard
+            </button>
+            <button class="w-full bg-purple-500 hover:bg-purple-600 text-white text-xl py-4 rounded-lg shadow-lg transition-all">
+                <i class="bi bi-shop"></i> Shop
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="gameScreen" class="hidden min-h-screen relative">
+        <!-- Power-up Wheel -->
+        <div id="wheelSection" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white p-8 rounded-2xl text-center">
+                <h2 class="title text-3xl mb-4">Spin for Power-up!</h2>
+                <div class="wheel w-64 h-64 rounded-full bg-yellow-400 border-8 border-orange-500 relative mb-4">
+                    <div class="absolute inset-0 flex items-center justify-center text-2xl">
+                        <i class="bi bi-star-fill text-white"></i>
+                    </div>
+                </div>
+                <button onclick="spinWheel()" class="bg-blue-500 hover:bg-blue-600 text-white px-8 py-3 rounded-lg">
+                    SPIN!
+                </button>
+            </div>
+        </div>
+
+        <!-- Race Track -->
+        <div class="race-track w-full h-screen relative">
+            <!-- Player Chicken -->
+            <div id="playerChicken" class="chicken absolute bottom-24 left-1/4 w-16 h-16 bg-white rounded-full flex items-center justify-center cursor-pointer">
+                🐔
+            </div>
+
+            <!-- Obstacles -->
+            <div id="obstacles" class="absolute inset-0">
+                <!-- Dynamically generated obstacles will go here -->
+            </div>
+
+            <!-- HUD -->
+            <div class="fixed top-4 left-4 right-4 flex justify-between items-center">
+                <div class="bg-white rounded-lg p-2 shadow-lg">
+                    <span id="score" class="text-xl font-bold">Score: 0</span>
+                </div>
+                <div class="bg-white rounded-lg p-2 shadow-lg">
+                    <span id="level" class="text-xl font-bold">Level: 1</span>
+                </div>
+            </div>
+
+            <!-- Power-up Bar -->
+            <div class="fixed bottom-4 left-4 right-4 flex justify-center gap-4">
+                <button onclick="usePowerUp('speed')" class="power-up bg-red-500 text-white p-4 rounded-full shadow-lg">
+                    <i class="bi bi-lightning-fill"></i>
+                </button>
+                <button onclick="usePowerUp('shield')" class="power-up bg-blue-500 text-white p-4 rounded-full shadow-lg">
+                    <i class="bi bi-shield-fill"></i>
+                </button>
+                <button onclick="usePowerUp('attack')" class="power-up bg-yellow-500 text-white p-4 rounded-full shadow-lg">
+                    <i class="bi bi-egg-fill"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let gameActive = false;
+        let score = 0;
+        let level = 1;
+        
+        function startGame() {
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            gameActive = true;
+            initializeGame();
+        }
+
+        function spinWheel() {
+            const wheel = document.querySelector('.wheel');
+            const randomRotation = 1080 + Math.random() * 360; // 3+ spins + random
+            wheel.style.transform = `rotate(${randomRotation}deg)`;
+            
+            setTimeout(() => {
+                document.getElementById('wheelSection').classList.add('hidden');
+                startRace();
+            }, 4500);
+        }
+
+        function initializeGame() {
+            // Initialize player position
+            const playerChicken = document.getElementById('playerChicken');
+            
+            // Mobile touch controls
+            document.addEventListener('touchstart', handleTouchStart);
+            document.addEventListener('touchmove', handleTouchMove);
+            
+            // Desktop keyboard controls
+            document.addEventListener('keydown', handleKeyPress);
+        }
+
+        let touchStartY = null;
+
+        function handleTouchStart(evt) {
+            touchStartY = evt.touches[0].clientY;
+        }
+
+        function handleTouchMove(evt) {
+            if (!touchStartY) return;
+            
+            const playerChicken = document.getElementById('playerChicken');
+            const touchY = evt.touches[0].clientY;
+            const diff = touchStartY - touchY;
+            
+            let newPos = parseInt(playerChicken.style.bottom || '96') + diff/5;
+            newPos = Math.max(24, Math.min(window.innerHeight - 88, newPos));
+            
+            playerChicken.style.bottom = `${newPos}px`;
+            touchStartY = touchY;
+        }
+
+        function handleKeyPress(evt) {
+            const playerChicken = document.getElementById('playerChicken');
+            const currentBottom = parseInt(playerChicken.style.bottom || '96');
+            
+            switch(evt.key) {
+                case 'ArrowUp':
+                    playerChicken.style.bottom = `${Math.min(window.innerHeight - 88, currentBottom + 20)}px`;
+                    break;
+                case 'ArrowDown':
+                    playerChicken.style.bottom = `${Math.max(24, currentBottom - 20)}px`;
+                    break;
+            }
+        }
+
+        function usePowerUp(type) {
+            const playerChicken = document.getElementById('playerChicken');
+            
+            switch(type) {
+                case 'speed':
+                    playerChicken.style.transform = 'scale(1.2)';
+                    setTimeout(() => playerChicken.style.transform = '', 2000);
+                    break;
+                case 'shield':
+                    playerChicken.style.boxShadow = '0 0 20px blue';
+                    setTimeout(() => playerChicken.style.boxShadow = '', 3000);
+                    break;
+                case 'attack':
+                    const egg = document.createElement('div');
+                    egg.className = 'absolute w-4 h-4 bg-white rounded-full';
+                    egg.style.left = `${parseInt(playerChicken.style.left || '25%') + 64}px`;
+                    egg.style.bottom = playerChicken.style.bottom;
+                    document.querySelector('.race-track').appendChild(egg);
+                    
+                    const animation = egg.animate([
+                        { left: egg.style.left },
+                        { left: '100%' }
+                    ], {
+                        duration: 1000,
+                        easing: 'linear'
+                    });
+                    
+                    animation.onfinish = () => egg.remove();
+                    break;
+            }
+        }
+
+        function startRace() {
+            // Initialize obstacle generation
+            generateObstacles();
+            
+            // Start score counter
+            const scoreInterval = setInterval(() => {
+                if (gameActive) {
+                    score += 10;
+                    document.getElementById('score').textContent = `Score: ${score}`;
+                    
+                    if (score % 1000 === 0) {
+                        level++;
+                        document.getElementById('level').textContent = `Level: ${level}`;
+                    }
+                }
+            }, 1000);
+        }
+
+        function generateObstacles() {
+            if (!gameActive) return;
+            
+            const obstacle = document.createElement('div');
+            obstacle.className = 'absolute right-0 w-12 h-12 bg-red-500 rounded';
+            obstacle.style.bottom = `${Math.random() * (window.innerHeight - 100)}px`;
+            document.getElementById('obstacles').appendChild(obstacle);
+            
+            const animation = obstacle.animate([
+                { right: '0' },
+                { right: '100%' }
+            ], {
+                duration: 2000,
+                easing: 'linear'
+            });
+            
+            animation.onfinish = () => {
+                obstacle.remove();
+                if (gameActive) generateObstacles();
+            };
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
